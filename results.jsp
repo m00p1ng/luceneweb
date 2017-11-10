@@ -64,6 +64,7 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
     String startVal    = null;              //string version of startindex
     String maxresults  = null;              //string version of maxpage
     String rankingType = null;
+    Analyzer analyzer = new ThaiAnalyzer();
     int thispage = 0;                       //used for the for/next either maxpage or
                                             //hits.totalHits - startindex - whichever is
                                             //less
@@ -101,7 +102,6 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
                                                                 //you probably played on the
                                                                 //query string so you get the
                                                                 //treatment
-        Analyzer analyzer = new ThaiAnalyzer();
         try {
                 QueryParser qp = new QueryParser("contents", analyzer);
                 query = qp.parse(queryString.trim()); //parse the query and construct the Query object
@@ -158,6 +158,9 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
         if (error == false && searcher != null) {
 %>
     <div class="container">
+        <div class="row">
+        <div class="col-md-7">
+        <h1 style="margin: 1.1em 0">KU Search</h1>
         <h3>Result</h3>
         <p>About <%=hits.totalHits%> results</p>
         <br />
@@ -178,6 +181,19 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
                 if ((doctitle == null) || doctitle.equals("")) {//use the path if it has no title
                     doctitle = doc.get("url");
                 }
+
+                QueryScorer queryScorer = new QueryScorer(query);
+                Highlighter highlighter = new Highlighter(queryScorer);
+                TokenStream tokenStream = analyzer.tokenStream("contents", docContents);
+                highlighter.setTextFragmenter(new SimpleFragmenter(100));
+                try {
+                    String fragment = highlighter.getBestFragments(tokenStream, docContents, 2, "...");
+                    docContents = fragment;
+                } catch (InvalidTokenOffsetsException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+
                 if(docContents.length() > maxCharContent) {
                     docContents = docContents.substring(0, Math.min(docContents.length(), maxCharContent)) + "...";
                 }
@@ -186,18 +202,18 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
                 <td>
                     <a
                         href="<%=doc.get("url")%>"
-                        style="color: blue; font-size: 1.2em;">
+                        style="color: #1a0dab; font-size: 1.2em;">
                         <%=doctitle%>
                     </a>
                 </td>
             </tr>
             <tr>
                 <td>
-                    <span style="color:green;text-decoration: none; font-size: 0.9em"><%=doc.get("url")%></span>
+                    <span style="color:#006621; text-decoration: none; font-size: 0.9em"><%=doc.get("url")%></span>
                 </td>
             </tr>
             <tr>
-                <td style="font-size: 0.9em"><%=docContents%></td>
+                <td class="doc-content" style="font-size: 0.9em; color: #545454"><%=docContents%></td>
             </tr>
             <tr>
                 <td><br /><br /></td>
@@ -212,6 +228,12 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
                         "&amp;maxresults=" + maxpage + 
                         "&amp;startat=" + (startindex + maxpage) +
                         "&amp;rankingType=" + rankingType;
+
+                String prevurl="results.jsp?query=" +
+                        URLEncoder.encode(queryString) +  //construct the "more" link
+                        "&amp;maxresults=" + maxpage + 
+                        "&amp;startat=" + (startindex - maxpage) +
+                        "&amp;rankingType=" + rankingType;
 %>
                 <tr style="display: flex; justify-content: center;">
                     <td>
@@ -221,20 +243,31 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
                 if(totalPages < showedPage) {
                     showedPage = totalPages;
                 }
-
-                for(int i = 1; i <= showedPage; i++) {
 %>
-                        <a href="<%=paging(queryString, rankingType, maxpage, i)%>" style="margin: 0 15px"><%=i%></a>
+<%
+                if(startindex - maxpage >= 0) {
+%>
+                        <a class="pagee-link" href="<%=prevurl%>">< Prev</a>
 <%
                 }
 %>
-                        <a href="<%=moreurl%>">Next >></a>
+<%
+
+                for(int i = 1; i <= showedPage; i++) {
+%>
+                        <a class="pagee-link" href="<%=paging(queryString, rankingType, maxpage, i)%>" style="margin: 0 15px"><%=i%></a>
+<%
+                }
+%>
+                        <a class="pagee-link" href="<%=moreurl%>">Next ></a>
                     </td>
                 </tr>
 <%
             }
 %>
         </table>
+        </div>
+        </div>
     </div>
     <br />
     <br />
@@ -242,6 +275,17 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
     <br />
     <br />
     <br />
+
+    <style>
+    .doc-content > b {
+        color: #dd4b39;
+        font-weight: normal;
+    }
+
+    .pagee-link {
+        color: #4285f4;
+    }
+    </style>
 
 <%  }                                    //then include our footer.
          //if (searcher != null)
