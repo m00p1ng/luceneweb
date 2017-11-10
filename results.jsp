@@ -1,19 +1,3 @@
-<!--
-    Licensed to the Apache Software Foundation (ASF) under one or more
-    contributor license agreements.  See the NOTICE file distributed with
-    this work for additional information regarding copyright ownership.
-    The ASF licenses this file to You under the Apache License, Version 2.0
-    the "License"); you may not use this file except in compliance with
-    the License.  You may obtain a copy of the License at
-
-        http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
- -->
 <%@page pageEncoding="UTF-8"%>
 <%@ page import = "  java.util.Arrays, javax.servlet.*, javax.servlet.http.*, java.io.*, java.net.URLEncoder, java.net.URLDecoder, java.nio.file.Paths, org.apache.lucene.analysis.Analyzer, org.apache.lucene.analysis.TokenStream, org.apache.lucene.analysis.standard.StandardAnalyzer, org.apache.lucene.analysis.th.ThaiAnalyzer, org.apache.lucene.document.Document, org.apache.lucene.index.DirectoryReader, org.apache.lucene.index.IndexReader, org.apache.lucene.queryparser.classic.QueryParser, org.apache.lucene.queryparser.classic.ParseException, org.apache.lucene.search.IndexSearcher, org.apache.lucene.search.Query, org.apache.lucene.search.ScoreDoc, org.apache.lucene.search.TopDocs, org.apache.lucene.search.highlight.Highlighter, org.apache.lucene.search.highlight.InvalidTokenOffsetsException, org.apache.lucene.search.highlight.QueryScorer, org.apache.lucene.search.highlight.SimpleFragmenter, org.apache.lucene.store.FSDirectory" %>
 
@@ -45,7 +29,7 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
     return "results.jsp?query=" +
             URLEncoder.encode(queryString) +
             "&amp;maxresults=" + maxpage + 
-            "&amp;startat=" + (maxpage*(page-1)) +
+            "&amp;page=" + page +
             "&amp;rankingType=" + rankingType;
 }
 %>
@@ -89,16 +73,15 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
         <p>Error message: <%=escapeHTML(e.getMessage())%></p>   
 <%      error = true;                                   //don't do anything up to the footer
     }
-%>
-<%
+
     if (error == false) {                                           //did we open the index?
         queryString = request.getParameter("query");                //get the search criteria
-        startVal    = request.getParameter("startat");              //get the start index
+        startVal    = request.getParameter("page");              //get the start index
         maxresults  = request.getParameter("maxresults");           //get max results per page
         rankingType = request.getParameter("rankingType");
         try {
             maxpage    = Integer.parseInt(maxresults);              //parse the max results first
-            startindex = Integer.parseInt(startVal);                //then the start index
+            startindex = maxpage*(Integer.parseInt(startVal)-1);    //then the start index
         } catch (Exception e) { } //we don't care if something happens we'll just start at 0 or end at 50
 
         if(rankingType.equals("cos")) {
@@ -126,8 +109,7 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
             error = true;                               //don't bother with the rest of the page
         }
     }
-%>
-<%
+
     if (error == false && searcher != null) {                     // if we've had no errors searcher != null was to handle a weird compilation bug
         thispage = maxpage;                                       // default last element to maxpage
 
@@ -169,119 +151,103 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
         }
     }
 
-        totalPages = hits.totalHits/maxpage;
-        if (error == false && searcher != null) {
+    totalPages = hits.totalHits/maxpage + 1;
+    if (error == false && searcher != null) {
 %>
-    <div class="container">
+    <div class="container" style="font-family: arial, sans-serif">
         <div class="row">
-            <div class="col-7">
+            <div class="col-lg-7">
                 <h1 style="margin: 1em 0 0 0;"><a href="./" style="color: #444444;">KU Search</a></h1>
                 <p style="color: #808080; margin-bottom: 1.8em">Page <%=crPage%>/<%=totalPages%> of about <%=hits.totalHits%> results (<%=rankBy%>)</p>
 <%
-            if ((startindex + maxpage) > hits.totalHits) {
-                    thispage = hits.totalHits - startindex;      // set the max index to maxpage or last
-            }                                                    // actual search result whichever is less
+        if ((startindex + maxpage) > hits.totalHits) {
+                thispage = hits.totalHits - startindex;      // set the max index to maxpage or last
+        }                                                    // actual search result whichever is less
 
-            for (int i = startindex; i < (thispage + startindex); i++) {  // for each element
-                Document doc = searcher.doc(hitsScore[i].doc);          //get the next document
-                String doctitle = doc.get("title");                          //get its title
-                String docContents = doc.get("contents");
-                String url = doc.get("path");                                //get its path field
-                if (url != null && url.startsWith("../webapps/")) {          // strip off ../webapps prefix if present
-                    url = url.substring(10);
-                }
-                if ((doctitle == null) || doctitle.equals("")) {//use the path if it has no title
-                    doctitle = doc.get("url");
-                }
+        for (int i = startindex; i < (thispage + startindex); i++) {  // for each element
+            Document doc = searcher.doc(hitsScore[i].doc);          //get the next document
+            String doctitle = doc.get("title");                          //get its title
+            String docContents = doc.get("contents");
+            String url = doc.get("path");                                //get its path field
+            if (url != null && url.startsWith("../webapps/")) {          // strip off ../webapps prefix if present
+                url = url.substring(10);
+            }
+            if ((doctitle == null) || doctitle.equals("")) {//use the path if it has no title
+                doctitle = doc.get("url");
+            }
 
-                QueryScorer queryScorer = new QueryScorer(query);
-                Highlighter highlighter = new Highlighter(queryScorer);
-                TokenStream tokenStream = analyzer.tokenStream("contents", docContents);
-                highlighter.setTextFragmenter(new SimpleFragmenter(100));
-                try {
-                    String fragment = highlighter.getBestFragments(tokenStream, docContents, 2, ".");
-                    docContents = fragment.replaceAll("( +)|(\\[\\])", " ").replaceAll("\\s", " ");
-                } catch (InvalidTokenOffsetsException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
+            QueryScorer queryScorer = new QueryScorer(query);
+            Highlighter highlighter = new Highlighter(queryScorer);
+            TokenStream tokenStream = analyzer.tokenStream("contents", docContents);
+            highlighter.setTextFragmenter(new SimpleFragmenter(100));
+            try {
+                String fragment = highlighter.getBestFragments(tokenStream, docContents, 2, ".");
+                docContents = fragment.replaceAll("( +)|(\\[\\])", " ").replaceAll("\\s", " ");
+            } catch (InvalidTokenOffsetsException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
 %>
-                <div>
+                <div style="margin-bottom: -1.5em">
                     <div class="text-truncate">
                         <a href="<%=doc.get("url")%>" style="color: #1a0dab; font-size: 18px;"> <%=doctitle%></a>
                     </div>
                     <div class="text-truncate">
                         <span style="color:#006621; font-size: 14px"><%=doc.get("url")%></span>
                     </div>
-                    <span class="doc-content" style="font-size: 14px; color: #545454"><%=docContents%></span>
+                    <span class="doc-content"><%=escapeHTML(docContents).replaceAll("&lt;B&gt;", "<B>").replaceAll("&lt;/B&gt;", "</B>")%></span>
                     <br /><br />
                 </div>
 <%
-            }
+        }
 %>
+                <div style="display: flex; justify-content: center; margin-bottom: 10em">
 <%
-            String moreurl="results.jsp?query=" +
-                    URLEncoder.encode(queryString) +  //construct the "more" link
-                    "&amp;maxresults=" + maxpage + 
-                    "&amp;startat=" + (startindex + maxpage) +
-                    "&amp;rankingType=" + rankingType;
+        if(totalPages < showedPage) {
+            showedPage = totalPages;
+        }
 
-            String prevurl="results.jsp?query=" +
-                    URLEncoder.encode(queryString) +
-                    "&amp;maxresults=" + maxpage + 
-                    "&amp;startat=" + (startindex - maxpage) +
-                    "&amp;rankingType=" + rankingType;
+        if(crPage > 1) {
 %>
-                <div style="display: flex; justify-content: center; margin-bottom: 200px">
+                    <a class="pagee-link" href="<%=paging(queryString, rankingType, maxpage, crPage-1)%>">< Prev</a>
 <%
-            if(totalPages < showedPage) {
-                showedPage = totalPages+1;
-            }
-%>
-<%
-            if(startindex - maxpage >= 0) {
-%>
-                    <a class="pagee-link" href="<%=prevurl%>">< Prev</a>
-<%
-            }
-%>
-<%
-            int strPg = 0;
-            int endPg = 0;
-            int shDiv = showedPage/2;
-            if(totalPages <= showedPage) {
-                strPg = 1;
-                endPg = totalPages;
-            } else if(crPage < shDiv) {
-                strPg = 1;
-                endPg = showedPage;
+        }
 
-            } else if(crPage >= shDiv && crPage < totalPages - shDiv) {
-                strPg = crPage - shDiv + 1;
-                endPg = crPage + shDiv;
-            } else {
-                strPg = totalPages - showedPage;
-                endPg = totalPages + 1;
-            }
+        int strPg = 0;
+        int endPg = 0;
+        int shDiv = showedPage/2;
+        if(totalPages <= showedPage) {
+            strPg = 1;
+            endPg = totalPages;
+        } else if(crPage < shDiv) {
+            strPg = 1;
+            endPg = showedPage;
 
-            for(int i = strPg; i <= endPg; i++) {
-                if (crPage == i) {
+        } else if(crPage >= shDiv && crPage < totalPages - shDiv) {
+            strPg = crPage - shDiv + 1;
+            endPg = crPage + shDiv;
+        } else {
+            strPg = totalPages - showedPage + 1;
+            endPg = totalPages;
+        }
+
+        for(int i = strPg; i <= endPg; i++) {
+            if (crPage == i) {
 %>
                     <a class="pagee-link acctive"><%=i%></a>
 <%
-                } else {
+            } else {
 %>
                     <a class="pagee-link" href="<%=paging(queryString, rankingType, maxpage, i)%>"><%=i%></a>
 <%
-                }
             }
+        }
+
+        if (crPage < totalPages) {   //if there are more results...display the more link
 %>
-<%    
-            if ((startindex + maxpage) < hits.totalHits) {   //if there are more results...display the more link
-%>
-                    <a class="pagee-link" href="<%=moreurl%>">Next ></a>
+                    <a class="pagee-link" href="<%=paging(queryString, rankingType, maxpage, crPage+1)%>">Next ></a>
 <%
-            }
+        }
 %>
                 </div>
             </div>
@@ -294,6 +260,9 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
     }
 
     .doc-content {
+        font-size: 14px;
+        color: #545454;
+
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
@@ -312,8 +281,7 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
     }
     </style>
 
-<%  }                                    //then include our footer.
-         //if (searcher != null)
-         //       searcher.close();
+<%
+    }                                    //then include our footer.
 %>
 <%@include file="footer.jsp"%>
