@@ -20,7 +20,7 @@
 <div class="content"> 
     <div class="card" style="padding: 5em">
         <div>
-            <h1 class="center-content" style="margin-bottom: 40px">KU Search</h1>
+            <h1 class="center-content" style="margin-bottom: 40px; color: #444444;">KU Search</h1>
         <div>
         <form name="search" action="results.jsp" method="get">
             <div class="form-group">

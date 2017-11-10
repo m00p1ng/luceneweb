@@ -16,8 +16,8 @@
  -->
 <%
 /* Author: Andrew C. Oliver (acoliver2@users.sourceforge.net) */
-String appTitle = "Apache Lucene Example - Intranet Server Search Application";
+String appTitle = "KU Search";
 /* make sure you point the below string to the index you created with IndexHTML */
-String indexLocation = "YOUR INDEX LOCATION";
+String indexLocation = "Desktop/index";
 String appfooter = "Apache Lucene Template WebApp 1.0";
 %>

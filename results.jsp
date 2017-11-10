@@ -59,12 +59,16 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
     ScoreDoc[] hitsScore = null;
     int startindex = 0;                     //the first index displayed on this page
     int maxpage    = 50;                    //the maximum items displayed on this page
-    int maxCharContent = 400;
+    int maxCharContent = 200;
     String queryString = null;              //the query entered in the previous page
     String startVal    = null;              //string version of startindex
     String maxresults  = null;              //string version of maxpage
     String rankingType = null;
+    String rankBy = null;
+    int showedPage = 10;
+    int totalPages = 0;
     Analyzer analyzer = new ThaiAnalyzer();
+    int crPage = 0;
     int thispage = 0;                       //used for the for/next either maxpage or
                                             //hits.totalHits - startindex - whichever is
                                             //less
@@ -96,6 +100,16 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
             maxpage    = Integer.parseInt(maxresults);              //parse the max results first
             startindex = Integer.parseInt(startVal);                //then the start index
         } catch (Exception e) { } //we don't care if something happens we'll just start at 0 or end at 50
+
+        if(rankingType.equals("cos")) {
+            rankBy = "Cosine Similarity";
+        } else if(rankingType.equals("pr")) {
+            rankBy = "PageRank";
+        } else if(rankingType.equals("cos-pr")) {
+            rankBy = "Cosine Similarity & PageRank";
+        }
+
+        crPage = (startindex/maxpage)+1;
 
         if (queryString == null)
             throw new ServletException("no query sepcified");   //if you don't have a query then
@@ -155,16 +169,14 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
         }
     }
 
+        totalPages = hits.totalHits/maxpage;
         if (error == false && searcher != null) {
 %>
     <div class="container">
         <div class="row">
-        <div class="col-md-7">
-        <h1 style="margin: 1.1em 0">KU Search</h1>
-        <h3>Result</h3>
-        <p>About <%=hits.totalHits%> results</p>
-        <br />
-        <table>
+            <div class="col-7">
+                <h1 style="margin: 1em 0 0 0;"><a href="./" style="color: #444444;">KU Search</a></h1>
+                <p style="color: #808080; margin-bottom: 1.8em">Page <%=crPage%>/<%=totalPages%> of about <%=hits.totalHits%> results (<%=rankBy%>)</p>
 <%
             if ((startindex + maxpage) > hits.totalHits) {
                     thispage = hits.totalHits - startindex;      // set the max index to maxpage or last
@@ -187,103 +199,116 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
                 TokenStream tokenStream = analyzer.tokenStream("contents", docContents);
                 highlighter.setTextFragmenter(new SimpleFragmenter(100));
                 try {
-                    String fragment = highlighter.getBestFragments(tokenStream, docContents, 2, "...");
-                    docContents = fragment;
+                    String fragment = highlighter.getBestFragments(tokenStream, docContents, 2, ".");
+                    docContents = fragment.replaceAll("( +)|(\\[\\])", " ").replaceAll("\\s", " ");
                 } catch (InvalidTokenOffsetsException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
-
-                if(docContents.length() > maxCharContent) {
-                    docContents = docContents.substring(0, Math.min(docContents.length(), maxCharContent)) + "...";
-                }
 %>
-            <tr>
-                <td>
-                    <a
-                        href="<%=doc.get("url")%>"
-                        style="color: #1a0dab; font-size: 1.2em;">
-                        <%=doctitle%>
-                    </a>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <span style="color:#006621; text-decoration: none; font-size: 0.9em"><%=doc.get("url")%></span>
-                </td>
-            </tr>
-            <tr>
-                <td class="doc-content" style="font-size: 0.9em; color: #545454"><%=docContents%></td>
-            </tr>
-            <tr>
-                <td><br /><br /></td>
-            </tr>
+                <div>
+                    <div class="text-truncate">
+                        <a href="<%=doc.get("url")%>" style="color: #1a0dab; font-size: 18px;"> <%=doctitle%></a>
+                    </div>
+                    <div class="text-truncate">
+                        <span style="color:#006621; font-size: 14px"><%=doc.get("url")%></span>
+                    </div>
+                    <span class="doc-content" style="font-size: 14px; color: #545454"><%=docContents%></span>
+                    <br /><br />
+                </div>
 <%
             }
 %>
-<%          if ((startindex + maxpage) < hits.totalHits) {   //if there are more results...display the more link
+<%
+            String moreurl="results.jsp?query=" +
+                    URLEncoder.encode(queryString) +  //construct the "more" link
+                    "&amp;maxresults=" + maxpage + 
+                    "&amp;startat=" + (startindex + maxpage) +
+                    "&amp;rankingType=" + rankingType;
 
-                String moreurl="results.jsp?query=" +
-                        URLEncoder.encode(queryString) +  //construct the "more" link
-                        "&amp;maxresults=" + maxpage + 
-                        "&amp;startat=" + (startindex + maxpage) +
-                        "&amp;rankingType=" + rankingType;
-
-                String prevurl="results.jsp?query=" +
-                        URLEncoder.encode(queryString) +  //construct the "more" link
-                        "&amp;maxresults=" + maxpage + 
-                        "&amp;startat=" + (startindex - maxpage) +
-                        "&amp;rankingType=" + rankingType;
+            String prevurl="results.jsp?query=" +
+                    URLEncoder.encode(queryString) +
+                    "&amp;maxresults=" + maxpage + 
+                    "&amp;startat=" + (startindex - maxpage) +
+                    "&amp;rankingType=" + rankingType;
 %>
-                <tr style="display: flex; justify-content: center;">
-                    <td>
+                <div style="display: flex; justify-content: center; margin-bottom: 200px">
 <%
-                int totalPages = hits.totalHits/maxpage;
-                int showedPage = 10;
-                if(totalPages < showedPage) {
-                    showedPage = totalPages;
-                }
+            if(totalPages < showedPage) {
+                showedPage = totalPages+1;
+            }
 %>
 <%
-                if(startindex - maxpage >= 0) {
+            if(startindex - maxpage >= 0) {
 %>
-                        <a class="pagee-link" href="<%=prevurl%>">< Prev</a>
-<%
-                }
-%>
-<%
-
-                for(int i = 1; i <= showedPage; i++) {
-%>
-                        <a class="pagee-link" href="<%=paging(queryString, rankingType, maxpage, i)%>" style="margin: 0 15px"><%=i%></a>
-<%
-                }
-%>
-                        <a class="pagee-link" href="<%=moreurl%>">Next ></a>
-                    </td>
-                </tr>
+                    <a class="pagee-link" href="<%=prevurl%>">< Prev</a>
 <%
             }
 %>
-        </table>
-        </div>
+<%
+            int strPg = 0;
+            int endPg = 0;
+            int shDiv = showedPage/2;
+            if(totalPages <= showedPage) {
+                strPg = 1;
+                endPg = totalPages;
+            } else if(crPage < shDiv) {
+                strPg = 1;
+                endPg = showedPage;
+
+            } else if(crPage >= shDiv && crPage < totalPages - shDiv) {
+                strPg = crPage - shDiv + 1;
+                endPg = crPage + shDiv;
+            } else {
+                strPg = totalPages - showedPage;
+                endPg = totalPages + 1;
+            }
+
+            for(int i = strPg; i <= endPg; i++) {
+                if (crPage == i) {
+%>
+                    <a class="pagee-link acctive"><%=i%></a>
+<%
+                } else {
+%>
+                    <a class="pagee-link" href="<%=paging(queryString, rankingType, maxpage, i)%>"><%=i%></a>
+<%
+                }
+            }
+%>
+<%    
+            if ((startindex + maxpage) < hits.totalHits) {   //if there are more results...display the more link
+%>
+                    <a class="pagee-link" href="<%=moreurl%>">Next ></a>
+<%
+            }
+%>
+                </div>
+            </div>
         </div>
     </div>
-    <br />
-    <br />
-    <br />
-    <br />
-    <br />
-    <br />
-
     <style>
     .doc-content > b {
         color: #dd4b39;
         font-weight: normal;
     }
 
+    .doc-content {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .pagee-link {
         color: #4285f4;
+        margin: 0 0.6em;
+        font-size: 14px;
+    }
+
+    .acctive {
+        color: rgba(0, 0, 0, 0.87);
     }
     </style>
 
