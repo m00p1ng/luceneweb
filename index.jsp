@@ -17,15 +17,51 @@
 <%@include file="header.jsp"%>
 <%@page pageEncoding="UTF-8"%>
 <% /* Author: Andrew C. Oliver (acoliver2@users.sourceforge.net) */ %>
-<center> 
+<div class="content"> 
 	<form name="search" action="results.jsp" method="get">
-		<p>
-			<input name="query" size="44"/>&nbsp;Search Criteria
-		</p>
-		<p>
-			<input name="maxresults" size="4" value="10"/>&nbsp;Results Per Page&nbsp;
-			<input type="submit" value="Search"/>
-		</p>
-        </form>
-</center>
+		<div class="form-group">
+			<input
+                type="text"
+                name="query"
+                size="44"
+                style="text-align: center"
+                class="form-control"
+                autofocus
+            />
+		</div>
+		<div class="form-group center-content">
+			<span>Results&nbsp;</span>
+            <input
+                type="text"
+                name="maxresults"
+                class="form-control"
+                style="width: 60px"
+                value="10"
+            />
+            &nbsp;
+            <select name="rankingType" class="form-control" style="width: 210px">
+                <option value="cos">Cosine Sim</option>
+                <option value="pr">Pagerank</option>
+                <option value="cos-pr">Cosine Sim &amp; Pagerank</option>
+            </select>
+		</div>
+        <div class="form-group center-content">
+			<button class="btn btn-primary" type="submit"/>Search</button>
+        </div>
+    </form>
+</div>
 <%@include file="footer.jsp"%>
+
+<style>
+.content {
+    height: 80vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.center-content {
+    display: flex;
+    justify-content: center;
+}
+</style>
