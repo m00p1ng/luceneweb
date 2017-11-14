@@ -151,14 +151,45 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
         }
     }
 
-    totalPages = hits.totalHits/maxpage + 1;
+    totalPages = hits.totalHits/maxpage;
+    if(hits.totalHits % maxpage != 0) {
+        totalPages++;
+    }
     if (error == false && searcher != null) {
 %>
-    <div class="container" style="font-family: arial, sans-serif">
+    <div style="background-color: #fafafa;">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-7">
+                    <h2 style="margin-top: 0.5em; margin-bottom: 0.3em">
+                        <a href="./" style="color: #444444;">KU Search</a>
+                    </h2>
+                    <form name="search" action="results.jsp" method="get">
+                        <div class="form-group">
+                            <div class="input-group mb-2 mb-sm-0">
+                                <input name="query" type="text" class="form-control" placeholder="Search..." value="<%=queryString%>" >
+                                <button class="btn btn-primary input-group-addon" type="submit">Search</button>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center">
+                            <input name="rankingType" type="radio" value="cos" /> <span style="margin-right: 1em; margin-left: 0.2em">Cosine Sim</span>
+                            <input name="rankingType" type="radio" value="pr"/> <span style="margin-right: 1em; margin-left: 0.2em">Pagerank</span>
+                            <input name="rankingType" type="radio" value="cos-pr"/><span style="margin-right: 1em; margin-left: 0.2em">Cosine Sim &amp; Pagerank</span>
+                            <div style="margin-left: auto">
+                                Result <input type="number" name="maxresults" value="10" class="form-control" style="width: 60; display: inline" />
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div style="border-bottom: 1px solid #ebebeb"></div>
+    <div class="container" style="font-family: arial, sans-serif; margin-top: 0.8em">
         <div class="row">
             <div class="col-lg-7">
-                <h1 style="margin: 1em 0 0 0;"><a href="./" style="color: #444444;">KU Search</a></h1>
-                <p style="color: #808080; margin-bottom: 1.8em">Page <%=crPage%>/<%=totalPages%> of about <%=hits.totalHits%> results (<%=rankBy%>)</p>
+                <p style="color: #808080; margin-bottom: 1.5em; font-size: 0.9em">Page <%=crPage%> of about <%=hits.totalHits%> results (<%=rankBy%>)</p>
 <%
         if ((startindex + maxpage) > hits.totalHits) {
                 thispage = hits.totalHits - startindex;      // set the max index to maxpage or last
@@ -201,6 +232,7 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
 <%
         }
 %>
+                <span class="h4" style="display: flex; justify-content: center; margin-top: 1em; margin-bottom: 0.5em; font-weight: bold; color: #444">KU Search</span>
                 <div style="display: flex; justify-content: center; margin-bottom: 10em">
 <%
         if(totalPages < showedPage) {
@@ -209,43 +241,50 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
 
         if(crPage > 1) {
 %>
-                    <a class="pagee-link" href="<%=paging(queryString, rankingType, maxpage, crPage-1)%>">< Prev</a>
+                    <a class="pagee-link" style="margin-right: 2em" href="<%=paging(queryString, rankingType, maxpage, crPage-1)%>">< Prev</a>
 <%
-        }
-
+        } else {
+%>
+                    <a class="pagee-link" style="margin-right: 2em; color: white">< Prev</a>
+<%
+        } 
+        
         int strPg = 0;
         int endPg = 0;
         int shDiv = showedPage/2;
         if(totalPages <= showedPage) {
             strPg = 1;
             endPg = totalPages;
-        } else if(crPage < shDiv) {
+        } else if(crPage < shDiv + 1) {
             strPg = 1;
             endPg = showedPage;
-
-        } else if(crPage >= shDiv && crPage < totalPages - shDiv) {
-            strPg = crPage - shDiv + 1;
-            endPg = crPage + shDiv;
+        } else if(crPage >= shDiv + 1 && crPage < totalPages - shDiv + 1) {
+            strPg = crPage - shDiv;
+            endPg = crPage + shDiv - 1;
         } else {
-            strPg = totalPages - showedPage + 1;
+            strPg = totalPages - showedPage;
             endPg = totalPages;
         }
 
         for(int i = strPg; i <= endPg; i++) {
             if (crPage == i) {
 %>
-                    <a class="pagee-link acctive"><%=i%></a>
+                    <a class="pagee-link acctive" style="margin: 0 0.43em"><%=i%></a>
 <%
             } else {
 %>
-                    <a class="pagee-link" href="<%=paging(queryString, rankingType, maxpage, i)%>"><%=i%></a>
+                    <a class="pagee-link" style="margin: 0 0.43em" href="<%=paging(queryString, rankingType, maxpage, i)%>"><%=i%></a>
 <%
             }
         }
 
         if (crPage < totalPages) {   //if there are more results...display the more link
 %>
-                    <a class="pagee-link" href="<%=paging(queryString, rankingType, maxpage, crPage+1)%>">Next ></a>
+                    <a class="pagee-link" style="margin-left: 2em" href="<%=paging(queryString, rankingType, maxpage, crPage+1)%>">Next ></a>
+<%
+        } else {
+%>
+                    <a class="pagee-link" style="margin-left: 2em; color: white">Next ></a>
 <%
         }
 %>
@@ -272,7 +311,6 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
 
     .pagee-link {
         color: #4285f4;
-        margin: 0 0.6em;
         font-size: 14px;
     }
 
@@ -281,6 +319,15 @@ public String paging(String queryString, String rankingType,int maxpage, int pag
     }
     </style>
 
+    <script>
+        let rt = "<%=rankingType%>";
+        let mr = "<%=maxresults%>";
+
+        $(document).ready(() => {
+            $(`input[name="rankingType"][value="${rt}"]`).prop('checked', true);
+            $('input[name="maxresults"]').prop('value', mr);
+        })
+    </script>
 <%
     }                                    //then include our footer.
 %>
